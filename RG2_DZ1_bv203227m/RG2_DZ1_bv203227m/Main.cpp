@@ -3,10 +3,11 @@
 #include <iostream>
 #include "ShaderClass.h"
 
-int WIDTH = 800;
-int HEIGHT = 600;
 
-int iterations = 200;
+int windowWidth = 800;
+int windowHeight = 600;
+
+int iterations = 101;
 double zoom = 100.0;
 double offsetX = 0.0;
 double offsetY = 0.0;
@@ -16,11 +17,12 @@ double oldX, oldY;
 
 Shader* shaderProgram;
 
-void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods);
-void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
-void cursor_position_callback(GLFWwindow* window, double xpos, double ypos);
-void scroll_callback(GLFWwindow* window, double xoffset, double yoffset);
-void window_size_callback(GLFWwindow* window, int width, int height);
+// Callback functions for user interaction
+void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
+void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
+void cursorPositionCallback(GLFWwindow* window, double xpos, double ypos);
+void scrollCallback(GLFWwindow* window, double xoffset, double yoffset);
+void windowSizeCallback(GLFWwindow* window, int width, int height);
 
 int main() {
 	if (!glfwInit()) {
@@ -30,24 +32,32 @@ int main() {
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-	GLFWwindow* window = glfwCreateWindow(WIDTH, HEIGHT, "Mandelbrot Set", NULL, NULL);
+	GLFWwindow* window = glfwCreateWindow(windowWidth, windowHeight, "RG2 DZ1: Mandelbrot", NULL, NULL);
 	if (!window) {
 		std::cout << "Window creation failed" << std::endl;
 		glfwTerminate();
 	}
 
 	glfwSetErrorCallback([](int e, const char* s) { std::cout << s << std::endl; });
-	glfwSetKeyCallback(window, key_callback);
-	glfwSetCursorPosCallback(window, cursor_position_callback);
-	glfwSetMouseButtonCallback(window, mouse_button_callback);
-	glfwSetScrollCallback(window, scroll_callback);
-	glfwSetWindowSizeCallback(window, window_size_callback);
+	glfwSetKeyCallback(window, keyCallback);
+	glfwSetCursorPosCallback(window, cursorPositionCallback);
+	glfwSetMouseButtonCallback(window, mouseButtonCallback);
+	glfwSetScrollCallback(window, scrollCallback);
+	glfwSetWindowSizeCallback(window, windowSizeCallback);
 
 	glfwMakeContextCurrent(window);
 
 	if (glewInit() != 0) {
 		std::cout << "GLEW initialization error" << std::endl;
 	}
+
+
+	// Variables for FPS displaying
+	double prevTime = 0.0;
+	double crntTime = 0.0;
+	double timeDiff;
+	unsigned int counter = 0;
+
 
 	float vertices[] = {
 		-1.0f, -1.0f,
@@ -70,20 +80,34 @@ int main() {
 
 	shaderProgram = new Shader("mandelbrot.vert", "mandelbrot.frag");
 	shaderProgram->Activate();
-	glUniform2d(glGetUniformLocation(shaderProgram->ID, "screenSize"), (double)WIDTH, (double)HEIGHT);
+	glUniform2d(glGetUniformLocation(shaderProgram->ID, "screenSize"), (double)windowWidth, (double)windowHeight);
 	glUniform2d(glGetUniformLocation(shaderProgram->ID, "offset"), offsetX, offsetY);
 	glUniform1d(glGetUniformLocation(shaderProgram->ID, "zoom"), zoom);
 	glUniform1i(glGetUniformLocation(shaderProgram->ID, "iterations"), iterations);
 
+
 	while (!glfwWindowShouldClose(window)) {
+		// Update title with FPS and other info
+		crntTime = glfwGetTime();
+		timeDiff = crntTime - prevTime;
+		counter++;
+		if (timeDiff >= 1.0 / 20.0) {
+			std::string FPS = std::to_string((1.0 / timeDiff) * counter);
+			std::string newTitle = "RG2 DZ1: Mandelbrot (iterations: " + std::to_string(iterations) + "; FPS: " + FPS + ")";
+			glfwSetWindowTitle(window, newTitle.c_str());
+			prevTime = crntTime;
+			counter = 0;
+		}
+
+		// Perform drawing and polling
 		glClear(GL_COLOR_BUFFER_BIT);
-
 		glDrawArrays(GL_TRIANGLES, 0, 6);
-
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 	}
 
+
+	// Delete and close
 	glDeleteVertexArrays(1, &vao);
 	glDeleteBuffers(1, &vbo);
 	shaderProgram->Delete();
@@ -92,7 +116,7 @@ int main() {
 	glfwTerminate();
 }
 
-void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
 	// ESC exits the program
 	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
 		glfwSetWindowShouldClose(window, 1);
@@ -142,16 +166,17 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 	glUniform2d(glGetUniformLocation(shaderProgram->ID, "offset"), offsetX, offsetY);
 }
 
-void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
+void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
 	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
 		glfwGetCursorPos(window, &oldX, &oldY);
 		dragging = true;
 	}
-	else if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE)
+	else if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE) {
 		dragging = false;
+	}
 }
 
-void cursor_position_callback(GLFWwindow* window, double xpos, double ypos) {
+void cursorPositionCallback(GLFWwindow* window, double xpos, double ypos) {
 	if (dragging) {
 		double xpos, ypos;
 		glfwGetCursorPos(window, &xpos, &ypos);
@@ -166,13 +191,13 @@ void cursor_position_callback(GLFWwindow* window, double xpos, double ypos) {
 	}
 }
 
-void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
+void scrollCallback(GLFWwindow* window, double xoffset, double yoffset) {
 	if (yoffset != 0) {
 		double xpos, ypos;
 		glfwGetCursorPos(window, &xpos, &ypos);
 
-		double dx = (xpos - WIDTH / 2) / zoom - offsetX;
-		double dy = (HEIGHT - ypos - HEIGHT / 2) / zoom - offsetY;
+		double dx = (xpos - windowWidth / 2) / zoom - offsetX;
+		double dy = (windowHeight - ypos - windowHeight / 2) / zoom - offsetY;
 		offsetX = -dx;
 		offsetY = -dy;
 		if (yoffset < 0) {
@@ -182,8 +207,8 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
 			zoom *= 1.1;
 		}
 
-		dx = (xpos - WIDTH / 2) / zoom;
-		dy = (HEIGHT - ypos - HEIGHT / 2) / zoom;
+		dx = (xpos - windowWidth / 2) / zoom;
+		dy = (windowHeight - ypos - windowHeight / 2) / zoom;
 		offsetX += dx;
 		offsetY += dy;
 
@@ -192,9 +217,9 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
 	}
 }
 
-void window_size_callback(GLFWwindow* window, int width, int height) {
+void windowSizeCallback(GLFWwindow* window, int width, int height) {
 	glViewport(0, 0, width, height);
-	WIDTH = width;
-	HEIGHT = height;
-	glUniform2d(glGetUniformLocation(shaderProgram->ID, "screenSize"), (double)WIDTH, (double)HEIGHT);
+	windowWidth = width;
+	windowHeight = height;
+	glUniform2d(glGetUniformLocation(shaderProgram->ID, "screenSize"), (double)windowWidth, (double)windowHeight);
 }
