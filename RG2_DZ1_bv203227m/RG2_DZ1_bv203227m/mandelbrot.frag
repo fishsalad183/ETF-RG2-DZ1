@@ -23,13 +23,6 @@ double mandelbrot(dvec2 c) {
 	return n / float(iterations);
 }
 
-vec4 mandelbrotToRGBDefault(float t) {
-	float r = 9.0 * (1.0 - t) * t * t * t;
-	float g = 15.0 * (1.0 - t) * (1.0 - t) * t * t;
-	float b = 8.5 * (1.0 - t) * (1.0 - t) * (1.0 - t) * t;
-	return vec4(r, g, b, 1.0);
-}
-
 // All components are in the range [0…1], including hue
 vec3 hsvToRGB(vec3 c) {
     vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
@@ -37,10 +30,19 @@ vec3 hsvToRGB(vec3 c) {
     return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
 }
 
+// Default color palette
 vec4 mandelbrotToHSVToRGB(float m) {
 	vec3 hsv = vec3(m, 1.0, 1.0);
 	vec3 rgb = hsvToRGB(hsv);
 	return vec4(rgb.r, rgb.g, rgb.b, 1.0);
+}
+
+// Traditional color palette
+vec4 mandelbrotToRGB(float t) {
+	float r = 9.0 * (1.0 - t) * t * t * t;
+	float g = 15.0 * (1.0 - t) * (1.0 - t) * t * t;
+	float b = 8.5 * (1.0 - t) * (1.0 - t) * (1.0 - t) * t;
+	return vec4(r, g, b, 1.0);
 }
 
 void main() {
@@ -49,6 +51,6 @@ void main() {
 	if (gl_FragCoord.x < 40) {
 		gl_FragColor = vec4(1.0);
 	}
-	//gl_FragColor = mandelbrotToRGBDefault(float(t));
+	//gl_FragColor = mandelbrotToRGB(float(t));
 	gl_FragColor = mandelbrotToHSVToRGB(float(t));
 }

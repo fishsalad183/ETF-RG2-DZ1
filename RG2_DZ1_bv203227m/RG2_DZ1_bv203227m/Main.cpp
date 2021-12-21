@@ -12,17 +12,17 @@ double zoom = 100.0;
 double offsetX = 0.0;
 double offsetY = 0.0;
 
-bool dragging = false;
+bool isMouseDragged = false;
 double oldX, oldY;
 
 Shader* shaderProgram;
 
 // Callback functions for user interaction
-void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
-void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
-void cursorPositionCallback(GLFWwindow* window, double xpos, double ypos);
-void scrollCallback(GLFWwindow* window, double xoffset, double yoffset);
-void windowSizeCallback(GLFWwindow* window, int width, int height);
+void detectKeyPress(GLFWwindow* window, int key, int scancode, int action, int mods);
+void detectDragging(GLFWwindow* window, int button, int action, int mods);
+void pan(GLFWwindow* window, double xpos, double ypos);
+void changeZoom(GLFWwindow* window, double xoffset, double yoffset);
+void resizeView(GLFWwindow* window, int width, int height);
 
 int main() {
 	if (!glfwInit()) {
@@ -39,11 +39,11 @@ int main() {
 	}
 
 	glfwSetErrorCallback([](int e, const char* s) { std::cout << s << std::endl; });
-	glfwSetKeyCallback(window, keyCallback);
-	glfwSetCursorPosCallback(window, cursorPositionCallback);
-	glfwSetMouseButtonCallback(window, mouseButtonCallback);
-	glfwSetScrollCallback(window, scrollCallback);
-	glfwSetWindowSizeCallback(window, windowSizeCallback);
+	glfwSetKeyCallback(window, detectKeyPress);
+	glfwSetCursorPosCallback(window, pan);
+	glfwSetMouseButtonCallback(window, detectDragging);
+	glfwSetScrollCallback(window, changeZoom);
+	glfwSetWindowSizeCallback(window, resizeView);
 
 	glfwMakeContextCurrent(window);
 
@@ -52,18 +52,12 @@ int main() {
 	}
 
 
-	// Variables for FPS displaying
-	double prevTime = 0.0;
-	double crntTime = 0.0;
-	double timeDiff;
-	unsigned int counter = 0;
-
-
 	float vertices[] = {
+		// Triangle - lower right
 		-1.0f, -1.0f,
 		 1.0f, -1.0f,
 		 1.0f,  1.0f,
-
+		 // Triangle - upper left
 		 1.0f,  1.0f,
 		-1.0f,  1.0f,
 		-1.0f, -1.0f,
@@ -84,6 +78,13 @@ int main() {
 	glUniform2d(glGetUniformLocation(shaderProgram->ID, "offset"), offsetX, offsetY);
 	glUniform1d(glGetUniformLocation(shaderProgram->ID, "zoom"), zoom);
 	glUniform1i(glGetUniformLocation(shaderProgram->ID, "iterations"), iterations);
+
+
+	// Variables for FPS displaying
+	double prevTime = 0.0;
+	double crntTime = 0.0;
+	double timeDiff;
+	unsigned int counter = 0;
 
 
 	while (!glfwWindowShouldClose(window)) {
@@ -116,7 +117,7 @@ int main() {
 	glfwTerminate();
 }
 
-void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+void detectKeyPress(GLFWwindow* window, int key, int scancode, int action, int mods) {
 	// ESC exits the program
 	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
 		glfwSetWindowShouldClose(window, 1);
@@ -166,18 +167,18 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
 	glUniform2d(glGetUniformLocation(shaderProgram->ID, "offset"), offsetX, offsetY);
 }
 
-void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
+void detectDragging(GLFWwindow* window, int button, int action, int mods) {
 	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
 		glfwGetCursorPos(window, &oldX, &oldY);
-		dragging = true;
+		isMouseDragged = true;
 	}
 	else if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_RELEASE) {
-		dragging = false;
+		isMouseDragged = false;
 	}
 }
 
-void cursorPositionCallback(GLFWwindow* window, double xpos, double ypos) {
-	if (dragging) {
+void pan(GLFWwindow* window, double xpos, double ypos) {
+	if (isMouseDragged) {
 		double xpos, ypos;
 		glfwGetCursorPos(window, &xpos, &ypos);
 
@@ -191,7 +192,7 @@ void cursorPositionCallback(GLFWwindow* window, double xpos, double ypos) {
 	}
 }
 
-void scrollCallback(GLFWwindow* window, double xoffset, double yoffset) {
+void changeZoom(GLFWwindow* window, double xoffset, double yoffset) {
 	if (yoffset != 0) {
 		double xpos, ypos;
 		glfwGetCursorPos(window, &xpos, &ypos);
@@ -217,7 +218,7 @@ void scrollCallback(GLFWwindow* window, double xoffset, double yoffset) {
 	}
 }
 
-void windowSizeCallback(GLFWwindow* window, int width, int height) {
+void resizeView(GLFWwindow* window, int width, int height) {
 	glViewport(0, 0, width, height);
 	windowWidth = width;
 	windowHeight = height;
